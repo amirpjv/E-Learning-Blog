@@ -1,0 +1,181 @@
+import React, { useEffect, useState } from 'react'
+import { LinkContainer } from 'react-router-bootstrap'
+import { Container, Table, Button, Row, Col, Modal, Pagination, Spinner } from 'react-bootstrap'
+import { useDispatch, useSelector } from 'react-redux'
+import Message from '../components/Message'
+import {
+    listBlogs,
+    deleteBlog,
+    createBlog,
+} from '../actions/blogActions'
+import { BLOG_CREATE_RESET, BLOG_DELETE_RESET } from '../constants/blogConstants'
+import { useNavigate, useParams } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faTrash, faEdit, faPlus } from '@fortawesome/free-solid-svg-icons'
+import Meta from '../components/Meta'
+import { Link } from 'react-router-dom'
+
+const AdminBlogListScreen = () => {
+    const { pageNumber = 1 } = useParams();
+    const dispatch = useDispatch()
+    const navigate = useNavigate();
+    const blogList = useSelector((state) => state.blogList)
+    const { loading, error, blogs, page, pages } = blogList
+
+    const blogDelete = useSelector((state) => state.blogDelete)
+    const {
+        loading: loadingDelete,
+        error: errorDelete,
+        success: successDelete,
+    } = blogDelete
+
+    const blogCreate = useSelector((state) => state.blogCreate)
+    const {
+        loading: loadingCreate,
+        error: errorCreate,
+        success: successCreate,
+        blog: createdBlog,
+    } = blogCreate
+
+    const userSignin = useSelector((state) => state.userSignin)
+    const { userInfo } = userSignin
+
+    useEffect(() => {
+        if (!userInfo || !userInfo.isAdmin) {
+            navigate('/signin')
+        }
+        if (successCreate) {
+            dispatch({ type: BLOG_CREATE_RESET })
+            navigate(`/admin/addblog/${createdBlog.blog._id}`)
+        }
+        if (successDelete) {
+            dispatch({ type: BLOG_DELETE_RESET })
+        }
+        dispatch(listBlogs({ name: '', pageNumber }))
+    }, [
+        dispatch,
+        navigate,
+        userInfo,
+        successDelete,
+        successCreate,
+        createdBlog,
+        pageNumber,
+    ])
+    const [show, setShow] = useState(false);
+    const [deleteId, setDeleteId] = useState('');
+
+    const handleClose = () => setShow(false);
+    const handleShow = (id) => {
+        setDeleteId(id)
+        setShow(true);
+    }
+
+    const deleteHandler = () => {
+        setShow(false);
+        dispatch(deleteBlog(deleteId))
+    }
+
+    const createBlogHandler = () => {
+        dispatch(createBlog())
+    }
+
+    return (
+        <Container fluid className="min-vh-100">
+            <Meta title={'Blog List'} />
+            <Modal show={show} onHide={handleClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Delete</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>Are you sure you want to delete this item?</Modal.Body>
+                <Modal.Footer>
+                    <Button variant="success" onClick={handleClose}>
+                        No
+          </Button>
+                    <Button variant="danger" onClick={deleteHandler}>
+                        Yes
+          </Button>
+                </Modal.Footer>
+            </Modal>
+            <Row className="d-flex justify-content-start w-25 ms-0">
+                <Link to='/' className='btn btn-warning my-3'>
+                    Go Home
+                    </Link>
+            </Row>
+            <Row className='d-flex align-items-center py-2'>
+                <Col>
+                    <h1>Products</h1>
+                </Col>
+                <Col className='d-flex justify-content-end float-end align-items-center'>
+                    <Button variant="warning" className='my-3' onClick={createBlogHandler}>
+                        <FontAwesomeIcon icon={faPlus} className="text-info" /> Create Product
+          </Button>
+                </Col>
+            </Row>
+            {loadingDelete && <Spinner />}
+            {errorDelete && <Message variant='danger'>{errorDelete}</Message>}
+            {loadingCreate && <Spinner />}
+            {errorCreate && <Message variant='danger'>{errorCreate}</Message>}
+            {loading ? (
+                <Spinner />
+            ) : error ? (
+                <Message variant='danger'>{error}</Message>
+            ) : (
+                        <>
+                            <Table striped bordered hover responsive className='table-sm text-center'>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>NAME</th>
+                                        <th>CATEGORY</th>
+                                        <th>ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {blogs.map((blog) => (
+                                        <tr key={blog._id}>
+                                            <td>{blog._id}</td>
+                                            <td>{blog.blogName}</td>
+                                            <td>{blog.category}</td>
+                                            <td className="d-flex justify-content-evenly">
+                                                <LinkContainer to={`/admin/addblog/${blog._id}`}>
+                                                    <Button variant='transparent' className='btn-sm'>
+                                                        <FontAwesomeIcon icon={faEdit} className="text-success" />
+                                                    </Button>
+                                                </LinkContainer>
+                                                <Button
+                                                    variant='transparent'
+                                                    className='btn-sm'
+                                                    onClick={() => handleShow(blog._id)}
+                                                >
+                                                    <FontAwesomeIcon icon={faTrash} className="text-danger" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                            <Row className="d-flex justify-content-center text-center my-3">
+                                {
+                                    (
+                                        pages > 1 && (
+                                            <Pagination className="d-flex justify-content-center text-center m-auto">
+                                                {[...Array(pages).keys()].map((x) => (
+                                                    <LinkContainer
+                                                        key={x + 1}
+                                                        to={`/admin/bloglist/pageNumber/${x + 1}`}
+                                                    >
+                                                        <Pagination.Item active={x + 1 === page}>{x + 1}</Pagination.Item>
+                                                    </LinkContainer>
+                                                ))}
+                                            </Pagination>
+                                        )
+                                    )
+                                }
+                            </Row>
+                        </>
+                    )}
+        </Container>
+    )
+}
+
+export default AdminBlogListScreen
